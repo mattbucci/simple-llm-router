@@ -1,0 +1,48 @@
+# In-cluster router configuration — EXAMPLE / PLACEHOLDER ONLY.
+#
+# The running pod does NOT read this file. It mounts its config from a Secret
+# named `simple-llm-router-config` (key: config.yaml), created out-of-band so the
+# real fleet hostnames and model paths never land in a committed manifest. This
+# file documents the expected shape and is the template for that Secret.
+#
+# Create / update the Secret from your real config (e.g. config.local.yaml):
+#   kubectl -n default create secret generic simple-llm-router-config \
+#     --from-file=config.yaml=./config.local.yaml \
+#     --dry-run=client -o yaml | kubectl apply -f -
+#
+# See the repo-root config.example.yaml + docs/engineering/0010-configuration.md
+# for the full field reference.
+
+listen: ":8080"
+max_body_size: 256MB
+
+auth:
+  tokens:
+    - ${ROUTER_API_KEY}   # optional; empty list trusts the cluster network
+
+backends:
+  - name: gpu-0
+    base_url: http://gpu-0.example.internal:8000/v1   # placeholder — real host via Secret
+    protocol: openai
+  - name: gpu-1
+    base_url: http://gpu-1.example.internal:8000/v1   # placeholder — real host via Secret
+    protocol: openai
+
+aliases:
+  north:
+    type: proxy
+    model: /models/North-Mini-Code-1.0-fp8
+    backends: [gpu-0]
+  gemma:
+    type: proxy
+    model: gemma4-31b
+    backends: [gpu-1]
+
+health:
+  interval: 10s
+  timeout: 2s
+
+timeouts:
+  connect: 5s
+  request: 120s
+  idle: 30s

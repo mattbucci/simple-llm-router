@@ -1,0 +1,26 @@
+# Keep the build context small and reproducible: only source + go.mod/go.sum are
+# needed. Everything below is build output, local-only config, or tooling cruft.
+/bin/
+/dist/
+*.test
+*.out
+
+# Local, environment-specific config (real hostnames / model paths / secrets).
+config.local.yaml
+*.local.yaml
+.env
+
+# Eval artifacts and Python venvs.
+evals/report/
+__pycache__/
+*.pyc
+.venv/
+
+# VCS, CI, docs, and editor cruft — irrelevant to the binary.
+.git/
+.github/
+.claude/
+.opencode/
+docs/
+*.md
+.DS_Store

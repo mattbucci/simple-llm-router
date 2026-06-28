@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: simple-llm-router
+  namespace: default
+  labels:
+    app: simple-llm-router
+spec:
+  # ClusterIP: the router is the stable in-cluster endpoint agents target as
+  # http://simple-llm-router.default.svc.cluster.local. Expose externally via the
+  # cluster's Traefik ingress only if needed.
+  type: ClusterIP
+  selector:
+    app: simple-llm-router
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simple-llm-router
+  namespace: default
+  labels:
+    app: simple-llm-router
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: simple-llm-router
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0   # keep the single stable endpoint up across rollouts
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: simple-llm-router
+    spec:
+      # GHCR is private; the pull secret is provisioned per-namespace (see flux.md).
+      imagePullSecrets:
+        - name: github-registry-auth
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: router
+          # Tag is pinned/updated by the Flux Kustomization in the hellauseful
+          # repo via the image-automation setter; this value is a placeholder.
+          image: ghcr.io/mattbucci/simple-llm-router:latest
+          args:
+            - --config
+            - /etc/router/config.yaml
+            - --log-level
+            - info
+          ports:
+            - name: http
+              containerPort: 8080
+          # Operator endpoints are unauthenticated (ADR-0011): /healthz is a pure
+          # liveness ping; /readyz reports whether at least one backend is healthy.
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: "1"
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: config
+              mountPath: /etc/router
+              readOnly: true
+      volumes:
+        # Real fleet config is supplied out-of-band as a Secret so hostnames and
+        # model paths stay out of the repo (key config.yaml -> /etc/router/config.yaml).
+        - name: config
+          secret:
+            secretName: simple-llm-router-config

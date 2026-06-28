@@ -1,0 +1,18 @@
+# Kustomize entrypoint for the Flux Kustomization defined in the hellauseful repo
+# (clusters/homelab/simple-llm-router-kustomization.yaml), which targets this
+# `./deploy` path and overrides the image tag via its image-automation setter.
+#
+# config.example.yaml is intentionally NOT listed here — it documents the shape of
+# the out-of-band `simple-llm-router-config` Secret and is not applied to the cluster.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: default
+
+resources:
+  - deployment.yaml
+  - service.yaml
+
+images:
+  - name: ghcr.io/mattbucci/simple-llm-router
+    newTag: latest

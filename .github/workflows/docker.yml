@@ -1,0 +1,60 @@
+# Container image pipeline (GitOps): every push to main builds the router image
+# and pushes it to GHCR tagged `main-<short-sha>-<unix-ts>`. That tag shape is
+# what the hellauseful Flux ImagePolicy filters on
+# (pattern '^main-[a-f0-9]+-(?P<ts>[0-9]+)', newest timestamp wins), so a merge
+# to main automatically rolls out to the homelab cluster.
+name: Docker
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: write   # required to push to ghcr.io
+
+env:
+  IMAGE: ghcr.io/mattbucci/simple-llm-router
+
+jobs:
+  build-and-push:
+    name: build & push image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compute image tag
+        id: tag
+        # `main-<short-sha>-<unix-ts>` — matches the Flux ImagePolicy regex; the
+        # trailing timestamp gives a strict, monotonically increasing ordering.
+        run: |
+          echo "tag=main-$(git rev-parse --short HEAD)-$(date +%s)" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          # linux/amd64 + arm64 so the image runs on either node architecture.
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.tag.outputs.tag }}
+            ${{ env.IMAGE }}:latest
+          build-args: |
+            VERSION=${{ steps.tag.outputs.tag }}
+            COMMIT=${{ github.sha }}
+            DATE=${{ github.event.head_commit.timestamp }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
