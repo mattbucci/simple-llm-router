@@ -1,0 +1,27 @@
+# Build output
+/bin/
+*.test
+*.out
+
+# Local, environment-specific config (real hostnames / model paths / secrets)
+config.local.yaml
+*.local.yaml
+.env
+
+# Eval artifacts
+evals/report/
+__pycache__/
+*.pyc
+.venv/
+
+# opencode local session/state
+.opencode/
+
+# Claude Code local settings (committed skills under .claude/skills/ are kept)
+.claude/settings.local.json
+
+# OS / editor cruft
+.DS_Store
+
+# linus-review working files
+.claude/reviews/

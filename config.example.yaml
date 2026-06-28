@@ -1,0 +1,76 @@
+# simple-llm-router — example configuration
+# Full reference and rationale live in the ADRs under docs/engineering/
+# (see 0010-configuration.md). Secrets use ${ENV} interpolation — never commit them.
+
+# Address the router's HTTP server listens on.
+listen: ":8080"
+
+# Maximum accepted request body. Multimodal (base64 image/audio/video) is large,
+# so this is generous by default. See ADR-0008.
+max_body_size: 256MB
+
+# Optional inbound auth. If `tokens` is non-empty, every request must present a
+# matching key (OpenAI: `Authorization: Bearer`, Anthropic: `x-api-key`).
+# If empty/omitted, the router trusts the LAN. See ADR-0009.
+auth:
+  tokens:
+    - ${ROUTER_API_KEY}
+
+# Backends are any OpenAI- or Anthropic-compatible endpoint (vLLM, SGLang, ...).
+# `protocol` selects the provider shape (default: openai). See ADR-0002, ADR-0016.
+backends:
+  - name: gpu-0
+    base_url: http://gpu-0:8000/v1
+    protocol: openai
+  - name: gpu-1
+    base_url: http://gpu-1:8000/v1
+    protocol: openai
+  # Example of an Anthropic-shaped provider needing its own credential:
+  # - name: anthropic-host
+  #   base_url: https://some-host/v1
+  #   protocol: anthropic
+  #   credentials: { api_key: ${ANTHROPIC_HOST_KEY} }
+
+# Aliases: stable, friendly names agents use as the `model` value. See ADR-0004.
+aliases:
+  # 1) Simple proxy alias → one upstream model on one backend.
+  north:
+    type: proxy
+    model: /models/North-Mini-Code-1.0-fp8
+    backends: [gpu-0]
+  gemma:
+    type: proxy
+    model: gemma4-31b
+    backends: [gpu-1]
+
+  # 2) Pareto alias → cheapest model meeting a quality bar. See ADR-0013.
+  smart:
+    type: proxy
+    selector: pareto
+    min_quality: 0.6
+    pool:
+      - { model: /models/North-Mini-Code-1.0-fp8, backends: [gpu-0], quality: 0.9 }
+      - { model: gemma4-31b, backends: [gpu-1], quality: 0.6 }
+
+  # 3) Fusion alias → panel → judge → synthesis. See ADR-0014.
+  council:
+    type: fusion
+    panel:
+      - { model: /models/North-Mini-Code-1.0-fp8, backends: [gpu-0] }
+      - { model: gemma4-31b, backends: [gpu-1] }
+    judge:     { model: /models/North-Mini-Code-1.0-fp8, backends: [gpu-0] }
+    synthesis: { model: /models/North-Mini-Code-1.0-fp8, backends: [gpu-0] }
+    temperature: 0.7
+    max_completion_tokens: 2048
+
+# Health checking polls GET /v1/models per backend. See ADR-0005.
+health:
+  interval: 10s
+  timeout: 2s
+
+# Per-request upstream timeouts. Streaming is exempt from the overall request
+# deadline but still honors connect/idle. See ADR-0007.
+timeouts:
+  connect: 5s
+  request: 120s
+  idle: 30s

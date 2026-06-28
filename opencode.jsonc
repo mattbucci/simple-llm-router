@@ -1,0 +1,38 @@
+{
+  // Project-level opencode config: points opencode at a locally-running
+  // simple-llm-router as an OpenAI-compatible provider. The model *key* (north,
+  // gemma, smart) is the string opencode sends as `model`, i.e. a router alias.
+  //
+  //   ./bin/router --config config.local.yaml            # in one terminal
+  //   opencode run -m router/north "reverse a linked list in Go"   # in another
+  //
+  // This is used by evals/opencode_smoke.sh as a real-agent test harness.
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "router": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "simple-llm-router (local)",
+      "options": {
+        "baseURL": "http://localhost:8080/v1",
+        "apiKey": "not-needed"
+      },
+      "models": {
+        "north": {
+          "name": "north (reasoning/code) via router",
+          "limit": { "context": 262144, "output": 8192 },
+          "tool_call": true
+        },
+        "gemma": {
+          "name": "gemma (multimodal) via router",
+          "limit": { "context": 262144, "output": 8192 },
+          "tool_call": true
+        },
+        "smart": {
+          "name": "smart (pareto) via router",
+          "limit": { "context": 262144, "output": 8192 },
+          "tool_call": true
+        }
+      }
+    }
+  }
+}
