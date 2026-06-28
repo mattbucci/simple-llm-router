@@ -161,6 +161,25 @@ uv run evals/run_evals.py      # behavioral evals against a running router
 
 See [`evals/README.md`](evals/README.md).
 
+## Related projects
+
+The router sits between **inference providers** (the backends it proxies to) and
+**consumers** (the agents that call it):
+
+**Inference providers** — SGLang serving setups the router can front:
+
+- [2x-R9700-RDNA4-GFX1201-sglang-inference](https://github.com/mattbucci/2x-R9700-RDNA4-GFX1201-sglang-inference)
+  — dual AMD R9700 (RDNA4 / gfx1201).
+- [2x-3090-GA102-300-A1-sglang-inference](https://github.com/mattbucci/2x-3090-GA102-300-A1-sglang-inference)
+  — dual NVIDIA RTX 3090 (GA102).
+- [m4-sglang-inference](https://github.com/mattbucci/m4-sglang-inference)
+  — Apple M4.
+
+**Consumers** — agents that call the router's stable endpoint:
+
+- [agent-sandbox](https://github.com/mattbucci/agent-sandbox) — agent harness
+  that drives the router.
+
 ## License
 
 [MIT](LICENSE) © 2026 Matthew Bucci
