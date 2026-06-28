@@ -12,6 +12,7 @@ namespace: default
 resources:
   - deployment.yaml
   - service.yaml
+  - service-lan.yaml
 
 images:
   - name: ghcr.io/mattbucci/simple-llm-router

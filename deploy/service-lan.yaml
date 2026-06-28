@@ -1,0 +1,23 @@
+# LAN exposure for off-cluster consumers (the Hermes Gateway running on bare metal
+# in an agent-sandbox VM uses this as its OpenAI-compatible inference endpoint).
+#
+# k3s ServiceLB (klipper) assigns this the node's LAN IP (192.168.2.144 = k3s.ph.ca),
+# so the gateway reaches the router at http://k3s.ph.ca:8080. Port 8080 is used
+# because traefik's LoadBalancer already claims 80/443 on the node. The in-cluster
+# ClusterIP Service (service.yaml) is unchanged for pod-to-pod use.
+apiVersion: v1
+kind: Service
+metadata:
+  name: simple-llm-router-lan
+  namespace: default
+  labels:
+    app: simple-llm-router
+spec:
+  type: LoadBalancer
+  selector:
+    app: simple-llm-router
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
