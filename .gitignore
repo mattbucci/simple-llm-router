@@ -3,6 +3,9 @@
 *.test
 *.out
 
+# GoReleaser release artifacts (cross-platform binaries, archives, checksums)
+/dist/
+
 # Local, environment-specific config (real hostnames / model paths / secrets)
 config.local.yaml
 *.local.yaml

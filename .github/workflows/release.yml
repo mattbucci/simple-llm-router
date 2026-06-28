@@ -1,0 +1,44 @@
+# Release pipeline: pushing a semver tag (e.g. `v1.2.3`) cross-compiles the
+# router for linux/macOS/windows on amd64 + arm64, archives each with the README,
+# LICENSE, and example config, generates checksums, and publishes a (draft)
+# GitHub Release carrying the downloadable binaries. GoReleaser does the build
+# and upload; its config lives in .goreleaser.yaml.
+#
+# To cut a release:
+#   git tag v1.2.3 && git push origin v1.2.3
+# Then publish the drafted release from the GitHub Releases page.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  # Required for GoReleaser to create the release and upload assets.
+  contents: write
+
+jobs:
+  goreleaser:
+    name: build & publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history + tags so the changelog can diff against the prior tag.
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          check-latest: true
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: '~> v2'
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

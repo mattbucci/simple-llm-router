@@ -1,0 +1,86 @@
+# GoReleaser builds the cross-platform release artifacts for simple-llm-router.
+# It is invoked only by CI on a `v*` tag (see .github/workflows/release.yml); it
+# is a build-time tool, not a code dependency, so the project's standard-library
+# -first ethos (ADR-0015) is preserved. Validate locally with:
+#
+#   goreleaser check                       # lint this config
+#   goreleaser release --snapshot --clean  # full dry run, no publish
+#
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
+project_name: simple-llm-router
+
+builds:
+  - id: router
+    main: ./cmd/router
+    binary: router
+    env:
+      # Pure-Go static binaries — no libc linkage, so they run anywhere on each
+      # target OS/arch without a toolchain or shared libraries installed.
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    # Trim filesystem paths from the binary for reproducibility, and stamp the
+    # build metadata read by `router --version` (cmd/router/main.go).
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.version={{ .Version }}
+      - -X main.commit={{ .Commit }}
+      - -X main.date={{ .Date }}
+
+archives:
+  - id: router
+    # tar.gz for Unix, zip for Windows (more native there). Names look like
+    # simple-llm-router_1.2.3_linux_amd64.tar.gz.
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - README.md
+      - LICENSE
+      - config.example.yaml
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  # Version string used for --snapshot dry-run builds (no tag present).
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  # Build release notes from commit subjects, grouped and de-noised.
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "Merge pull request"
+      - "Merge branch"
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 0
+    - title: Bug fixes
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
+      order: 1
+    - title: Other changes
+      order: 999
+
+release:
+  # Draft the GitHub Release so a human can eyeball the notes before publishing.
+  draft: true
+  prerelease: auto
+  name_template: "v{{ .Version }}"

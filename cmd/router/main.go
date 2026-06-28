@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -29,6 +30,16 @@ import (
 // (including draining streams, ADR-0007) before forcing the listener closed.
 const shutdownTimeout = 30 * time.Second
 
+// Build metadata, stamped at release time by GoReleaser via -ldflags (see
+// .goreleaser.yaml). The defaults apply to `go build`/`go run` development
+// builds; a released binary reports its tag, commit, and build date via
+// --version.
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 func main() {
 	os.Exit(run())
 }
@@ -39,7 +50,14 @@ func main() {
 func run() int {
 	configPath := flag.String("config", "", "path to the YAML configuration file (required)")
 	logLevel := flag.String("log-level", "info", "log verbosity: debug, info, warn, or error")
+	showVersion := flag.Bool("version", false, "print build version information and exit")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Printf("simple-llm-router %s (commit %s, built %s, %s/%s)\n",
+			version, commit, date, runtime.GOOS, runtime.GOARCH)
+		return 0
+	}
 
 	if *configPath == "" {
 		fmt.Fprintln(os.Stderr, "fatal: --config is required")

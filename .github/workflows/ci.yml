@@ -44,3 +44,33 @@ jobs:
 
       - name: go test (race)
         run: go test -race ./...
+
+  release-dryrun:
+    # Guard the release pipeline: validate .goreleaser.yaml and build a full set
+    # of cross-platform snapshot artifacts on every push/PR, so a broken release
+    # config is caught here instead of when a tag is pushed. Nothing is published.
+    name: release dry-run
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          check-latest: true
+
+      - name: Validate GoReleaser config
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: '~> v2'
+          args: check
+
+      - name: Build snapshot artifacts
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: '~> v2'
+          args: release --snapshot --clean

@@ -30,10 +30,29 @@ flowchart LR
 - **Boring on purpose.** Standard-library-first (one dependency: YAML),
   lock-free, easy to read and easy to operate.
 
+## Download
+
+Prebuilt binaries for **Linux, macOS, and Windows** (amd64 + arm64) are attached
+to every [GitHub Release](https://github.com/mattbucci/simple-llm-router/releases).
+Grab the archive for your platform, unpack it, and run `router` — there is no
+runtime to install (each binary is a single static, dependency-free executable):
+
+```bash
+# Linux/macOS — pick the asset matching your OS/arch
+curl -fsSL -o router.tar.gz \
+  https://github.com/mattbucci/simple-llm-router/releases/latest/download/simple-llm-router_<version>_<os>_<arch>.tar.gz
+tar -xzf router.tar.gz                 # extracts: router, README.md, LICENSE, config.example.yaml
+./router --version
+```
+
+On Windows, download the `..._windows_amd64.zip` asset, unzip it, and run
+`router.exe`. Each release also ships a `checksums.txt` for verification. Prefer
+to build from source? See the Quickstart below.
+
 ## Quickstart
 
 ```bash
-# 1. Build
+# 1. Build (or download a prebuilt binary — see "Download" above)
 go build -o bin/router ./cmd/router
 
 # 2. Configure (copy the template, edit backends + aliases)
