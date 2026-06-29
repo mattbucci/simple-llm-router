@@ -227,3 +227,52 @@ aliases:
 		})
 	}
 }
+
+// TestLoadAudio covers ADR-0022: the audio gateway is optional, addressed by a
+// valid base_url with an interpolated token; a bad URL fails fast, and an absent
+// audio block leaves it unconfigured.
+func TestLoadAudio(t *testing.T) {
+	const base = `
+backends:
+  - name: b1
+    base_url: http://localhost:8000/v1
+`
+	t.Run("gateway loads and carries token", func(t *testing.T) {
+		t.Setenv("VOICE_API_TOKEN", "sek")
+		path := writeConfig(t, base+`
+audio:
+  base_url: http://192.168.2.179:8653/v1
+  credentials: { api_key: ${VOICE_API_TOKEN} }
+`)
+		cfg, err := Load(path)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if !cfg.Audio.Configured() {
+			t.Fatalf("audio gateway should be configured")
+		}
+		if cfg.Audio.Credentials.APIKey != "sek" {
+			t.Errorf("audio api_key = %q, want interpolated value", cfg.Audio.Credentials.APIKey)
+		}
+	})
+
+	t.Run("absent audio block leaves it unconfigured", func(t *testing.T) {
+		cfg, err := Load(writeConfig(t, base))
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.Audio.Configured() {
+			t.Errorf("audio should be unconfigured when absent")
+		}
+	})
+
+	t.Run("bad base_url fails fast", func(t *testing.T) {
+		path := writeConfig(t, base+`
+audio:
+  base_url: "not a url"
+`)
+		if _, err := Load(path); err == nil || !strings.Contains(err.Error(), "audio base_url") {
+			t.Fatalf("err = %v, want audio base_url validation error", err)
+		}
+	})
+}

@@ -63,6 +63,18 @@ aliases:
     temperature: 0.7
     max_completion_tokens: 2048
 
+# Optional audio gateway: a transparent reverse proxy for the whole audio surface
+# (TTS, transcription, voice management, ElevenLabs isolation/sound-effects/music),
+# running parallel to the chat router. Omit or leave base_url empty to disable; the
+# audio endpoints then 404. The gateway is NOT a chat backend — it is not
+# health-probed via /v1/models, and its own /v1/models and /healthz are not
+# proxied. The gateway handles engine selection and transcoding. See ADR-0022.
+# Proxied: POST /v1/audio/{speech,transcriptions,isolation}, POST /v1/sound-effects,
+# POST /v1/music, and the /v1/voices subtree (list/register/delete).
+# audio:
+#   base_url: http://audio-host:8653/v1
+#   credentials: { api_key: ${VOICE_API_TOKEN} }
+
 # Health checking polls GET /v1/models per backend. See ADR-0005.
 health:
   interval: 10s

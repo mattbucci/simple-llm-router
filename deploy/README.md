@@ -41,6 +41,17 @@ kubectl -n default create secret generic simple-llm-router-config \
 The committed [`config.example.yaml`](./config.example.yaml) documents the
 expected shape; the running pod reads only the Secret.
 
+**3. Audio gateway token** (only if the `audio:` block is configured, ADR-0022).
+The config references it as `${VOICE_API_TOKEN}`, which the router interpolates from
+the process env at startup; `deployment.yaml` injects it from this Secret (the key
+is `optional`, so it is only needed when audio is in use):
+
+```sh
+kubectl -n default create secret generic simple-llm-router-secrets \
+  --from-literal=voice-api-token=<gateway-token> \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
 ## Files
 
 | file | purpose |

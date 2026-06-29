@@ -37,6 +37,17 @@ spec:
             - /etc/router/config.yaml
             - --log-level
             - info
+          env:
+            # Audio gateway token consumed by ${VOICE_API_TOKEN} in the config
+            # (ADR-0009/ADR-0022). ${VAR} interpolation reads the process env at
+            # startup, so the token is injected here from an out-of-band Secret.
+            # optional: true keeps the pod healthy when audio is not configured.
+            - name: VOICE_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: simple-llm-router-secrets
+                  key: voice-api-token
+                  optional: true
           ports:
             - name: http
               containerPort: 8080

@@ -43,16 +43,22 @@ type Server struct {
 	auth        Authenticator
 	maxBodySize int64
 	logger      *slog.Logger
+
+	// Audio gateway proxy (ADR-0022); nil when unconfigured, in which case the
+	// audio routes are not registered and their paths 404.
+	audioProxy *audioProxy
 }
 
 // New builds a Server. maxBodySize caps the inbound request body
-// (ADR-0008: large multimodal payloads, generous default set in config). A nil
-// logger falls back to slog.Default.
-func New(rt Router, health router.HealthView, metrics *observability.Metrics, auth Authenticator, maxBodySize int64, logger *slog.Logger) *Server {
+// (ADR-0008: large multimodal payloads, generous default set in config). The
+// audio config wires the optional audio gateway proxy (ADR-0022); an empty
+// BaseURL leaves it nil and its routes are not served. A nil logger falls back to
+// slog.Default.
+func New(rt Router, health router.HealthView, metrics *observability.Metrics, auth Authenticator, maxBodySize int64, audio AudioConfig, logger *slog.Logger) *Server {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &Server{
+	s := &Server{
 		router:      rt,
 		health:      health,
 		metrics:     metrics,
@@ -60,6 +66,16 @@ func New(rt Router, health router.HealthView, metrics *observability.Metrics, au
 		maxBodySize: maxBodySize,
 		logger:      logger,
 	}
+	// Build the gateway proxy when configured. Config has already validated the
+	// base URL (ADR-0010), so a build error here is defensive; log and skip.
+	if audio.Gateway.Configured() {
+		if p, err := newAudioProxy(audio.Gateway, audio.Connect, logger); err != nil {
+			logger.Error("audio gateway proxy disabled", slog.String("error", err.Error()))
+		} else {
+			s.audioProxy = p
+		}
+	}
+	return s
 }
 
 // Handler returns the router's HTTP handler. The consumer request endpoints
@@ -72,6 +88,22 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /v1/chat/completions", s.authed(http.HandlerFunc(s.handleOpenAIChat)))
 	mux.Handle("POST /v1/messages", s.authed(http.HandlerFunc(s.handleAnthropicMessages)))
 	mux.Handle("GET /v1/models", s.authed(http.HandlerFunc(s.handleModels)))
+
+	// Audio gateway endpoints — registered only when the gateway is configured, so
+	// otherwise these paths 404 (ADR-0022). They reuse the inbound auth middleware
+	// (ADR-0009) but bypass internal/router entirely; the gateway fans each one out
+	// to its local or cloud engine. The /v1/voices subtree is registered
+	// method-less so list/register/delete (and any /{id} child) all pass through.
+	if s.audioProxy != nil {
+		h := s.authed(s.audioHandler(s.audioProxy))
+		mux.Handle("POST /v1/audio/speech", h)
+		mux.Handle("POST /v1/audio/transcriptions", h)
+		mux.Handle("POST /v1/audio/isolation", h)
+		mux.Handle("POST /v1/sound-effects", h)
+		mux.Handle("POST /v1/music", h)
+		mux.Handle("/v1/voices", h)
+		mux.Handle("/v1/voices/", h)
+	}
 
 	// Operational endpoints — never authenticated (ADR-0011).
 	mux.HandleFunc("GET /healthz", s.handleHealthz)

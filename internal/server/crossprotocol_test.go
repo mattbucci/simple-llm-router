@@ -205,7 +205,7 @@ func newServerWithRouter(t *testing.T, rt server.Router) *server.Server {
 	metrics := observability.New(ctx)
 	health := fakeHealth{model.EmptySnapshot()}
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
-	return server.New(rt, health, metrics, server.NewStaticTokenAuth(nil), 100<<20, logger)
+	return server.New(rt, health, metrics, server.NewStaticTokenAuth(nil), 100<<20, server.AudioConfig{}, logger)
 }
 
 // TestHandlerDrivesFakeRouter shows the handler decoding the consumer request into

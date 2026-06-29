@@ -120,6 +120,49 @@ environment-specific values and secrets out of git. Full reference (aliases,
 `pareto`/`fusion`, auth, timeouts):
 [docs/engineering/0010-configuration.md](docs/engineering/0010-configuration.md).
 
+## Audio (TTS, transcription & cloud audio)
+
+The router can also front an **audio gateway** — text-to-speech, transcription,
+voice management, plus ElevenLabs audio-isolation, sound-effects, and music — as a
+transparent passthrough running parallel to the chat router
+([ADR-0022](docs/engineering/0022-audio-passthrough.md)). Point the optional
+`audio:` block at the gateway:
+
+```yaml
+audio:
+  base_url: http://192.168.2.179:8653/v1
+  credentials: { api_key: ${VOICE_API_TOKEN} }
+```
+
+Requests and responses are forwarded byte-for-byte and streamed, so binary audio,
+chunked output, and large multipart uploads (incl. mp4) pass through unmodified.
+The gateway handles engine selection (`auto`/`local`/`elevenlabs`), ffmpeg
+transcoding, and cloud fallback; the router just gives it a stable endpoint:
+
+```bash
+# register a voice
+curl http://localhost:8080/v1/voices -H 'Content-Type: application/json' \
+  -d '{"name":"anna","description":"bright energetic young female podcast host"}'
+# speak (binary audio round-trips through the router)
+curl http://localhost:8080/v1/audio/speech -H 'Content-Type: application/json' \
+  -d '{"input":"Hello world","voice":"anna","response_format":"wav"}' -o hi.wav
+# transcribe anything (incl. mp4)
+curl http://localhost:8080/v1/audio/transcriptions -F file=@meeting.mp4 -F response_format=srt
+# clean a clip / make a sound effect / generate music (ElevenLabs)
+curl http://localhost:8080/v1/audio/isolation -F file=@episode.mp3 -o clean.mp3
+curl http://localhost:8080/v1/sound-effects -H 'Content-Type: application/json' \
+  -d '{"text":"distant thunder, light rain","duration_seconds":5}' -o thunder.mp3
+curl http://localhost:8080/v1/music -H 'Content-Type: application/json' \
+  -d '{"prompt":"calm lo-fi piano loop","music_length_ms":15000}' -o loop.mp3
+```
+
+Proxied paths: `POST /v1/audio/{speech,transcriptions,isolation}`,
+`POST /v1/sound-effects`, `POST /v1/music`, and the `/v1/voices` subtree
+(list/register/delete). With no `base_url` the audio endpoints `404`. The gateway
+is **not** a chat backend: it is not health-probed via `/v1/models` and does not
+affect `/readyz`, and its own `/v1/models`/`/healthz` are not proxied. Inbound auth
+(`auth.tokens`) applies the same as for chat.
+
 ## Repository layout
 
 ```
@@ -147,6 +190,7 @@ normative **Compliance** rules. Start with the
 - [ADR-0013 — Pareto routing](docs/engineering/0013-pareto-routing.md) ·
   [ADR-0014 — Fusion routing](docs/engineering/0014-fusion-routing.md)
 - [ADR-0016 — Multi-protocol consumers & providers](docs/engineering/0016-multi-protocol.md)
+- [ADR-0022 — Audio passthrough (TTS & transcription)](docs/engineering/0022-audio-passthrough.md)
 
 The [`/engineering-audit`](.claude/skills/engineering-audit/SKILL.md) skill reads
 the Compliance rules and dispatches a team of agents to check the code against them.

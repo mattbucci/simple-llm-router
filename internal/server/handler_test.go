@@ -80,7 +80,7 @@ func newServer(t *testing.T, backends map[string]router.Backend, aliases map[str
 	health := fakeHealth{snap}
 	logger := slog.New(slog.NewJSONHandler(logW, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	rt := router.New(backends, health, metrics, aliases, logger)
-	return server.New(rt, health, metrics, server.NewStaticTokenAuth(tokens), 100<<20, logger)
+	return server.New(rt, health, metrics, server.NewStaticTokenAuth(tokens), 100<<20, server.AudioConfig{}, logger)
 }
 
 func snapshot(states ...model.BackendState) *model.Snapshot {

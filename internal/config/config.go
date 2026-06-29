@@ -27,7 +27,24 @@ type Config struct {
 	Aliases     map[string]Alias `yaml:"aliases"`
 	Health      Health           `yaml:"health"`
 	Timeouts    Timeouts         `yaml:"timeouts"`
+	Audio       AudioBackend     `yaml:"audio"`
 }
+
+// AudioBackend configures the optional audio gateway (ADR-0022): a single
+// upstream that fronts the whole audio surface — TTS, transcription, voice
+// management, audio isolation, sound-effects, and music. The router fronts it as
+// a transparent reverse proxy running parallel to the chat router. An empty
+// base_url disables every audio endpoint (they then 404). The gateway is NOT a
+// chat backend: it is not health-probed via /v1/models (ADR-0002, ADR-0005), and
+// the audio surface is OpenAI-shaped only, so it carries no protocol field. Its
+// own outbound credential is injected on every call (ADR-0009).
+type AudioBackend struct {
+	BaseURL     string      `yaml:"base_url"`
+	Credentials Credentials `yaml:"credentials"`
+}
+
+// Configured reports whether the audio gateway has a target and should be served.
+func (a AudioBackend) Configured() bool { return a.BaseURL != "" }
 
 // Auth holds the optional inbound token allowlist (ADR-0009).
 type Auth struct {
@@ -275,6 +292,15 @@ func (c *Config) validate() error {
 			}
 		default:
 			return fmt.Errorf("config: alias %q type %q must be proxy or fusion", name, a.Type)
+		}
+	}
+
+	// The audio gateway is optional (ADR-0022); when configured it just needs a
+	// valid target URL. The outbound api_key is optional (empty → no
+	// Authorization header injected), consistent with openai backends.
+	if c.Audio.Configured() {
+		if err := validateURL(c.Audio.BaseURL); err != nil {
+			return fmt.Errorf("config: audio base_url: %w", err)
 		}
 	}
 	return nil

@@ -35,6 +35,7 @@ code against those rules.
 | [0019](0019-error-model.md) | Error model — envelope, taxonomy & write-once | API contract, correctness |
 | [0020](0020-response-provenance-headers.md) | Response provenance headers | observability, traceability |
 | [0021](0021-process-lifecycle.md) | Process lifecycle — startup, signals, graceful shutdown | operability |
+| [0022](0022-audio-passthrough.md) | Audio passthrough — TTS, transcription, voices & cloud audio | interoperability, transparency |
 
 ## How a request flows (orientation)
 

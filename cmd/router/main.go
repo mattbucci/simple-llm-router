@@ -134,7 +134,14 @@ func run() int {
 	rt := router.New(backends, monitor, metrics, aliases, logger)
 
 	auth := server.NewStaticTokenAuth(cfg.Auth.Tokens)
-	srv := server.New(rt, monitor, metrics, auth, int64(cfg.MaxBodySize), logger)
+
+	// The optional audio gateway proxy runs parallel to the chat router
+	// (ADR-0022); an empty base_url leaves it unserved.
+	audio := server.AudioConfig{
+		Gateway: toAudioTarget(cfg.Audio),
+		Connect: cfg.Timeouts.Connect.Std(),
+	}
+	srv := server.New(rt, monitor, metrics, auth, int64(cfg.MaxBodySize), audio, logger)
 
 	httpServer := &http.Server{Addr: cfg.Listen, Handler: srv.Handler()}
 
@@ -150,6 +157,7 @@ func run() int {
 		slog.String("addr", cfg.Listen),
 		slog.Int("backends", len(clients)),
 		slog.Int("aliases", len(aliases)),
+		slog.Bool("audio", cfg.Audio.Configured()),
 	)
 
 	exitCode := 0
@@ -193,6 +201,13 @@ func toAlias(name string, a config.Alias) *router.Alias {
 		Temperature: a.Temperature,
 		MaxTokens:   a.MaxCompletionTokens,
 	}
+}
+
+// toAudioTarget converts the config audio gateway into the server's AudioTarget
+// so the server never imports internal/config (ADR-0003). An empty base_url maps
+// to a zero target the server leaves unserved (ADR-0022).
+func toAudioTarget(a config.AudioBackend) server.AudioTarget {
+	return server.AudioTarget{BaseURL: a.BaseURL, Token: a.Credentials.APIKey}
 }
 
 // toPool converts a config pool/panel into the router's PoolEntry slice.
